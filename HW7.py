@@ -52,6 +52,12 @@ class Record:
                 self.phones[i] = Phone(new_phone_number)
                 return
         raise ValueError("Phone number not found")
+    
+    def find_phone(self, phone_number):
+        for p in self.phones:
+            if str(p) == phone_number:
+                return p
+        return None
 
     def add_birthday(self, birthday):
         self.birthday = Birthday(birthday)
@@ -79,17 +85,23 @@ class AddressBook(UserDict):
 
     def get_upcoming_birthdays(self):
         upcoming_birthdays = []
-        today = datetime.datetime.today().date()
+        today = datetime.datetime.today()
+        next_monday = today + datetime.timedelta((0 - today.weekday()) % 7)
         for record in self.data.values():
             if record.birthday:
-                next_birthday_year = today.year if record.birthday.value.month >= today.month and record.birthday.value.day >= today.day else today.year + 1
-                next_birthday = datetime.datetime(next_birthday_year, record.birthday.value.month, record.birthday.value.day).date()
+                next_birthday = record.birthday.value.replace(year=today.year)
+                if next_birthday < today:
+                    next_birthday = next_birthday.replace(year=today.year + 1)            
+                while next_birthday.weekday() >= 5:
+                    next_birthday += datetime.timedelta(days=1)
                 days_until_birthday = (next_birthday - today).days
-                if days_until_birthday <= 7:
-                    upcoming_birthdays.append((record.name.value, next_birthday.strftime("%d.%m")))
-        return upcoming_birthdays
+                if days_until_birthday <= 5:
+                    upcoming_birthdays.append((record.name.value, next_birthday))
+        return [(name, (date + datetime.timedelta((0 - date.weekday()) % 7)).strftime('%d.%m.%Y')) for name, date in upcoming_birthdays]
 
 
+
+                    
 def input_error(func):
     def handler(*args, **kwargs):
         try:
@@ -113,28 +125,33 @@ def parse_input(user_input):
 
 
 @input_error
-def add_contact(args, book):
-    name, phone = args
-    if not phone.isdigit():
-        return "Invalid phone number. Please provide a number containing only digits."
-    if name in book:
-        book[name].add_phone(phone)
-        return "Phone number added to existing contact."
-    else:
+def add_contact(args, book: AddressBook):
+    name, phone, *_  = args
+    record = book.find(name)
+    message = "Contact updated."
+    if record is None:
         record = Record(name)
-        record.add_phone(phone)
         book.add_record(record)
-        return "New contact added."
+        message = "Contact added."
+    if phone:
+        record.add_phone(phone)
+    return message
 
 
 @input_error
-def change_contact(args, book):
-    name, phone = args
-    if name in book:
-        book[name].add_phone(phone)
+def change_contact(args, contacts):
+    name, new_phone = args
+    if name in contacts:
+        contact = contacts[name]
+        if contact.phones:
+            old_phone = str(contact.phones[0])
+            contact.remove_phone(old_phone)
+        contact.add_phone(new_phone)
         return "Phone number updated for existing contact."
     else:
         return "Contact not found."
+
+
 
 
 @input_error
