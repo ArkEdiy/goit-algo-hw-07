@@ -139,19 +139,18 @@ def add_contact(args, book: AddressBook):
 
 
 @input_error
-def change_contact(args, contacts):
-    name, new_phone = args
-    if name in contacts:
-        contact = contacts[name]
-        if contact.phones:
-            old_phone = str(contact.phones[0])
-            contact.remove_phone(old_phone)
-        contact.add_phone(new_phone)
-        return "Phone number updated for existing contact."
+def change_contact(args, book):
+    name, old_phone, new_phone = args
+    if name in book:
+        contact = book[name]
+        phone_to_change = contact.find_phone(old_phone)
+        if phone_to_change:
+            contact.edit_phone(old_phone, new_phone)
+            return "Phone number updated for existing contact."
+        else:
+            return "Old phone number not found for this contact."
     else:
         return "Contact not found."
-
-
 
 
 @input_error
